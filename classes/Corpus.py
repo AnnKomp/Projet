@@ -78,9 +78,7 @@ class Corpus:
             keep_default_na=False
         )
 
-        self.documents = {}
-        self.authors = {}
-        self.id_document = 0
+        self.clear()
 
         for _, ligne in df.iterrows():
             attributs = {
@@ -105,6 +103,12 @@ class Corpus:
                 document = Document(**attributs)
 
             self.add(document)
+            
+    def clear(self):
+        """Vider les documents et les auteurs, et réinitialiser le compteur."""
+        self.documents.clear()
+        self.authors.clear()
+        self.id_document = 0
 
     def __repr__(self):
         return (

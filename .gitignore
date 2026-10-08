@@ -1,0 +1,13 @@
+# Configuration privée
+praw.ini
+
+# Environnement et fichiers temporaires
+.venv/
+Projet.venv
+__pycache__/
+.ipynb_checkpoints/
+.DS_Store
+
+# Fichiers système macOS
+__MACOSX/
+._*

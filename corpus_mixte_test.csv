@@ -1,0 +1,3 @@
+titre	auteur	date	url	texte	type	nb_commentaires	coauteurs
+Mon chat	Anna	2026-10-08		Un texte de test Reddit.	reddit	12	[]
+Étude sur les chats	Alice	2026-10-01		Un résumé scientifique de test.	arxiv		"[""Alice"", ""Bob""]"

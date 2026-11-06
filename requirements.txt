@@ -5,6 +5,7 @@ scipy
 xmltodict
 certifi
 ipykernel
-matplotlib
 tqdm
 ipywidgets
+matplotlib
+streamlit

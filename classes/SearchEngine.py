@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from scipy.sparse import csr_matrix
+from tqdm import tqdm
 
 
 class SearchEngine:
@@ -18,7 +19,7 @@ class SearchEngine:
         self.vocab = {mot: {"id": i} for i, mot in enumerate(mots)}
 
         lignes, colonnes, valeurs = [], [], []
-        for i, mots_doc in enumerate(textes):
+        for i, mots_doc in enumerate(tqdm(textes, desc="Construction de la matrice")):
             comptes = {}
             for m in mots_doc:
                 comptes[m] = comptes.get(m, 0) + 1
@@ -59,7 +60,7 @@ class SearchEngine:
         q = self._vecteur_requete(mots_cles)
         norme_q = np.linalg.norm(q)
         if norme_q == 0:
-            return pd.DataFrame(columns=["titre", "auteur", "score"])
+            return pd.DataFrame(columns=["titre", "auteur", "source", "score"])
 
         produits = self.mat_TFxIDF.dot(q)
         scores = np.zeros(len(self.docs))
@@ -70,5 +71,6 @@ class SearchEngine:
         return pd.DataFrame({
             "titre": [self.docs[i].titre for i in meilleurs],
             "auteur": [self.docs[i].auteur for i in meilleurs],
+            "source": [self.docs[i].getType() for i in meilleurs],
             "score": [round(float(scores[i]), 4) for i in meilleurs],
         })

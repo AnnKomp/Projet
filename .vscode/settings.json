@@ -1,3 +1,4 @@
 {
-    "accessibility.signalOptions.volume": 20
+  "accessibility.signalOptions.volume": 20,
+  "python-envs.defaultEnvManager": "ms-python.python:system"
 }

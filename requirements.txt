@@ -1,5 +1,11 @@
 praw
 pandas
+numpy
+scipy
 xmltodict
 certifi
 ipykernel
+tqdm
+ipywidgets
+matplotlib
+streamlit

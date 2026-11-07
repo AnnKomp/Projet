@@ -1,6 +1,7 @@
 import json
 import pandas as pd
 import re
+from datetime import datetime
 
 from .Author import Author
 from .Document import Document, RedditDocument, ArxivDocument
@@ -114,7 +115,8 @@ class Corpus:
         self.documents.clear()
         self.authors.clear()
         self.id_document = 0
-        
+        self._chaine_unique = None
+
     def nettoyer_texte(self, texte):
         texte = texte.lower()                        # minuscules
         texte = texte.replace("\n", " ")             # sauts de ligne -> espace
@@ -164,21 +166,65 @@ class Corpus:
         motif = r"[^.]*\b" + re.escape(mot_cle) + r"\b[^.]*\."
         return re.findall(motif, chaine, flags=re.IGNORECASE)
     
-    def concorde(self, expression, taille_contexte=30):
-        chaine = self._construire_chaine()
+    def documents_source(self, source="Toutes"):
+        """Parcourir les (identifiant, document) de la source choisie."""
+        for identifiant, doc in self.documents.items():
+            if source == "Toutes" or doc.getType() == source:
+                yield identifiant, doc
+
+    def concorde(self, expression, taille_contexte=30, source="Toutes"):
+        # Chercher document par document évite de mélanger deux contextes.
+        colonnes = [
+            "contexte gauche", "motif trouvé", "contexte droit",
+            "id_document", "titre", "source", "url",
+        ]
+        if not expression.strip():
+            return pd.DataFrame(columns=colonnes)
+        taille_contexte = max(0, int(taille_contexte))
         motif = r"\b" + re.escape(expression) + r"\b"
 
         lignes = []
-        for m in re.finditer(motif, chaine, flags=re.IGNORECASE):
-            debut, fin = m.start(), m.end()
-            gauche = chaine[max(0, debut - taille_contexte):debut]
-            droite = chaine[fin:fin + taille_contexte]
-            lignes.append([gauche, m.group(), droite])
+        for identifiant, doc in self.documents_source(source):
+            chaine = doc.texte
+            for m in re.finditer(motif, chaine, flags=re.IGNORECASE):
+                debut, fin = m.start(), m.end()
+                gauche = chaine[max(0, debut - taille_contexte):debut]
+                droite = chaine[fin:fin + taille_contexte]
+                lignes.append([
+                    gauche, m.group(), droite, identifiant,
+                    doc.titre, doc.getType(), doc.url,
+                ])
 
-        return pd.DataFrame(
-            lignes,
-            columns=["contexte gauche", "motif trouvé", "contexte droit"],
-        )
+        return pd.DataFrame(lignes, columns=colonnes)
+
+    def evolution_mot(self, expression, source="Toutes"):
+        """Occurrences mensuelles du premier mot nettoyé, dans la source choisie."""
+        colonnes = ["periode", "occurrences"]
+        mots = self.nettoyer_texte(expression).split()
+        if not mots:
+            return pd.DataFrame(columns=colonnes)
+        mot = mots[0]
+
+        # Occurrences du mot regroupées par le mois de publication
+        series = {}
+        for _, doc in self.documents_source(source):
+            try:
+                date = datetime.fromisoformat(str(doc.date).replace("Z", "+00:00"))
+            except (ValueError, TypeError):
+                continue          # date manquante ou mal formée est ignorée
+            periode = date.strftime("%Y-%m")
+            nb = self.nettoyer_texte(doc.texte).split().count(mot)
+            series[periode] = series.get(periode, 0) + nb
+
+        if not series or sum(series.values()) == 0:
+            return pd.DataFrame(columns=colonnes)
+        # Conserver aussi les mois sans occurrence entre la première
+        # et la dernière publication du sous-corpus.
+        periodes = pd.period_range(min(series), max(series), freq="M").astype(str)
+        return pd.DataFrame({
+            "periode": periodes,
+            "occurrences": [series.get(p, 0) for p in periodes],
+        })
 
     def __repr__(self):
         return (

@@ -7,6 +7,7 @@ from tqdm import tqdm
 class SearchEngine:
     def __init__(self, corpus):
         self.corpus = corpus
+        self.ids = list(corpus.documents)
         self.docs = list(corpus.documents.values())
         self._construire_vocab_et_tf()
         self._construire_tfidf()
@@ -56,21 +57,40 @@ class SearchEngine:
                 vec[self.vocab[mot]["id"]] += 1
         return vec * self.idf
 
-    def search(self, mots_cles, n=5):
+    def search(self, mots_cles, n=5, source="Toutes"):
+        colonnes = ["id_document", "titre", "auteur", "source", "score", "url"]
+
         q = self._vecteur_requete(mots_cles)
         norme_q = np.linalg.norm(q)
-        if norme_q == 0:
-            return pd.DataFrame(columns=["titre", "auteur", "source", "score"])
+
+        if norme_q == 0 or n <= 0:
+            return pd.DataFrame(columns=colonnes)
 
         produits = self.mat_TFxIDF.dot(q)
         scores = np.zeros(len(self.docs))
+
         ok = self.normes > 0
         scores[ok] = produits[ok] / (self.normes[ok] * norme_q)
 
-        meilleurs = np.argsort(scores)[::-1][:n]
+        # Garder uniquement les documents correspondants,
+        # dans la source choisie.
+        candidats = [
+            i for i, doc in enumerate(self.docs)
+            if scores[i] > 0
+            and (source == "Toutes" or doc.getType() == source)
+        ]
+
+        # Trier, puis limiter le nombre de résultats.
+        meilleurs = sorted(
+            candidats, key=lambda i: scores[i], reverse=True
+        )[:n]
+
         return pd.DataFrame({
+            "id_document": [self.ids[i] for i in meilleurs],
             "titre": [self.docs[i].titre for i in meilleurs],
             "auteur": [self.docs[i].auteur for i in meilleurs],
             "source": [self.docs[i].getType() for i in meilleurs],
-            "score": [round(float(scores[i]), 4) for i in meilleurs],
-        })
+            # Garder la précision : l'arrondi est réservé à l'affichage.
+            "score": [float(scores[i]) for i in meilleurs],
+            "url": [self.docs[i].url for i in meilleurs],
+        }, columns=colonnes)
